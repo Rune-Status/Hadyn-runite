@@ -147,6 +147,7 @@ public final class Renderer {
       for (Shader shader : shaders) {
         glDetachShader(id, shader.getId());
       }
+
       throw new ProgramException("Failed to link program: ", glGetProgramInfoLog(id));
     }
 
@@ -157,9 +158,9 @@ public final class Renderer {
     return new Program(this, id);
   }
 
-  public void useProgram(int id) {
+  public void bindProgram(int id) {
     if (programId != id) {
-      logger.info("Using program {}", id);
+      logger.info("Bound program; id: {}", id);
       glUseProgram(id);
       programId = id;
     }
@@ -171,7 +172,7 @@ public final class Renderer {
 
   public void bindVertexArray(int id) {
     if (vertexArrayId != id) {
-      logger.info("Bound vertex array {}.", id);
+      logger.info("Bound vertex array; id: {}.", id);
       glBindVertexArray(id);
       vertexArrayId = id;
     }

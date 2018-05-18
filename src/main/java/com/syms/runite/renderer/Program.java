@@ -13,7 +13,7 @@ public final class Program {
   }
 
   public void use() {
-    renderer.useProgram(id);
+    renderer.bindProgram(id);
   }
 
   public Uniform getUniform(String name) {
