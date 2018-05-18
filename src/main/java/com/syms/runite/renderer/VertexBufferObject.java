@@ -30,8 +30,7 @@ public final class VertexBufferObject {
       buffer.put(floats);
       buffer.flip();
 
-      glBindBuffer(GL_ARRAY_BUFFER, id);
-      glBufferData(GL_ARRAY_BUFFER, buffer, usage);
+      set(buffer, usage);
     }
   }
 

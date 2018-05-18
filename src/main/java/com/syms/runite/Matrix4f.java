@@ -72,11 +72,14 @@ public final class Matrix4f {
     return this;
   }
 
-  public void asScaling(float x, float y, float z) {
+  public Matrix4f asScaling(float x, float y, float z) {
     setIdentity();
+
     a00 = x;
     a11 = y;
     a22 = z;
+
+    return this;
   }
 
   public Matrix4f scale(float x, float y, float z) {

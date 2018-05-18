@@ -106,8 +106,6 @@ public final class Client {
     }
   }
 
-  private int a = 0;
-
   public void draw() {
     if (frameBufferResized) {
       renderer.updateDimensions(frameBufferWidth, frameBufferHeight);

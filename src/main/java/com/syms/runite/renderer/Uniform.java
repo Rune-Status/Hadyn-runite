@@ -16,7 +16,7 @@ public final class Uniform {
     this.location = location;
   }
 
-  public void set(Matrix4f matrix) {
+  public void setMatrix4f(Matrix4f matrix) {
     try (MemoryStack stack = stackPush()) {
       FloatBuffer buffer = stack.mallocFloat(16);
       matrix.put(buffer);
@@ -26,7 +26,7 @@ public final class Uniform {
     }
   }
 
-  public void set(float v0, float v1, float v2) {
+  public void setVector3f(float v0, float v1, float v2) {
     try (MemoryStack stack = stackPush()) {
       FloatBuffer buffer = stack.mallocFloat(3);
       buffer.put(v0);
