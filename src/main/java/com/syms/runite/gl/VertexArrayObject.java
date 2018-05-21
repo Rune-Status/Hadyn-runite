@@ -1,4 +1,4 @@
-package com.syms.runite.renderer;
+package com.syms.runite.gl;
 
 import static java.lang.String.format;
 import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
@@ -15,8 +15,12 @@ public final class VertexArrayObject {
     id = glGenVertexArrays();
   }
 
+  public int getId() {
+    return id;
+  }
+
   public void bind() {
-    renderer.bindVertexArray(id);
+    renderer.bind(this);
   }
 
   public void destroy() {

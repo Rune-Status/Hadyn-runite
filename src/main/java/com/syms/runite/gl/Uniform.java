@@ -1,10 +1,10 @@
-package com.syms.runite.renderer;
+package com.syms.runite.gl;
 
 import static org.lwjgl.opengl.GL20.glUniform3fv;
 import static org.lwjgl.opengl.GL20.glUniformMatrix4fv;
 import static org.lwjgl.system.MemoryStack.stackPush;
 
-import com.syms.runite.Matrix4f;
+import com.syms.runite.math.Matrix4f;
 import java.nio.FloatBuffer;
 import org.lwjgl.system.MemoryStack;
 

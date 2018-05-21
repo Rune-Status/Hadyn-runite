@@ -25,10 +25,18 @@ import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.glClear;
 import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-import com.syms.runite.renderer.Renderer;
+import com.syms.runite.asset.Cache;
+import com.syms.runite.gl.Renderer;
+import com.syms.runite.io.BufferedFile;
+import com.syms.runite.io.FileOnDisk;
+import java.io.File;
+import java.io.IOException;
 import java.nio.IntBuffer;
+import org.lwjgl.glfw.GLFWFramebufferSizeCallbackI;
+import org.lwjgl.glfw.GLFWWindowSizeCallbackI;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
@@ -40,22 +48,28 @@ public final class Client {
 
   private static final String VERSION = "0.1.0";
 
-  private long window = NULL;
-  private int width = 500;
-  private int height = 500;
-  private boolean resized = true;
+  private static final int TYPE_COUNT = 17;
 
   private final Regulator regulator = new Regulator();
   private final int minimum = 1;
   private final int delta = 20;
 
+  private final Renderer renderer = new Renderer();
+
+  private long window = NULL;
+  private int width = 500;
+  private int height = 500;
+  private boolean resized = true;
+
+  private BufferedFile blocksFile;
+  private BufferedFile metaIndex;
+  private BufferedFile[] indexFiles = new BufferedFile[TYPE_COUNT];
+
   private int frameBufferWidth = -1;
   private int frameBufferHeight = -1;
   private boolean frameBufferResized;
 
-  private final Renderer renderer = new Renderer();
-
-  private boolean clean = true;
+  private boolean cleanShutdown = true;
 
   Client() {}
 
@@ -66,12 +80,30 @@ public final class Client {
   public void init() {
     logger.info("Starting up Runite; version: {}", VERSION);
 
-    glfwSetWindowSizeCallback(window, new WindowSizeCallback(this));
-    glfwSetFramebufferSizeCallback(window, new FrameBufferSizeCallback(this));
+    glfwSetWindowSizeCallback(window, new WindowSizeCallback());
+    glfwSetFramebufferSizeCallback(window, new FrameBufferSizeCallback());
+
+    try {
+      blocksFile = new BufferedFile(
+          new FileOnDisk(getCacheFile("main_file_cache.dat2"), "rw"), Cache.BLOCK_LENGTH * 10, 0);
+
+      metaIndex = new BufferedFile(
+          new FileOnDisk(getCacheFile("main_file_cache.idx255"), "rw"),
+            Cache.REFERENCE_LENGTH * 1000, 0);
+
+      for (int i = 0; i < indexFiles.length; i++) {
+        indexFiles[i] = new BufferedFile(
+            new FileOnDisk(getCacheFile("main_file_cache.idx" + i), "rw"),
+              Cache.REFERENCE_LENGTH * 1000, 0);
+      }
+    } catch (IOException reason) {
+      panic("Failed to find cache files.", reason);
+      return;
+    }
 
     logger.info("Initializing the renderer");
 
-    try (MemoryStack stack = MemoryStack.stackPush()) {
+    try (MemoryStack stack = stackPush()) {
       IntBuffer width = stack.mallocInt(1);
       IntBuffer height = stack.mallocInt(1);
       glfwGetFramebufferSize(window, width, height);
@@ -82,12 +114,15 @@ public final class Client {
     renderer.init(frameBufferWidth, frameBufferHeight);
   }
 
+  private File getCacheFile(String path) {
+    return new File("assets/cache/" + path);
+  }
+
   private void beginUpdate() {
     try {
       update();
     } catch (Throwable throwable) {
-      logger.error("Uncaught exception caught while updating.", throwable);
-      shutdown(false);
+      panic("Uncaught exception caught while updating.", throwable);
     }
   }
 
@@ -101,8 +136,7 @@ public final class Client {
     try {
       draw();
     } catch (Throwable throwable) {
-      logger.error("Uncaught exception caught while drawing.", throwable);
-      shutdown(false);
+      panic("Uncaught exception caught while drawing.", throwable);
     }
   }
 
@@ -114,15 +148,36 @@ public final class Client {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    renderer.fillQuad(0, 0, 50, 50, 0xffff);
+    renderer.fillQuad(25, 25, 50, 50, 0xffffff);
+  }
+
+  public void panic(String message, Throwable throwable) {
+    logger.error(message, throwable);
+    shutdown(false);
   }
 
   public void shutdown(boolean clean) {
     glfwSetWindowShouldClose(window, true);
-    this.clean = clean;
+    cleanShutdown = clean;
   }
 
   public void destroy() {
+    logger.info("Closing files.");
+
+    try {
+      blocksFile.close();
+      metaIndex.close();
+
+      for (BufferedFile file : indexFiles) {
+        file.close();
+      }
+    } catch (IOException ignored) {
+    }
+
+    logger.info("Freeing renderer resources.");
+    renderer.destroy();
+
+    logger.info("Freeing GLFW resources.");
     glfwFreeCallbacks(window);
     glfwDestroyWindow(window);
     window = NULL;
@@ -165,22 +220,38 @@ public final class Client {
       glfwSwapBuffers(window);
     }
 
-    logger.info("Shutting down; clean: {}", clean);
+    logger.info("Shutting down; clean: {}", cleanShutdown);
 
     destroy();
   }
 
-  void windowResized(int width, int height) {
+  public void windowResized(int width, int height) {
     logger.info("Window has been resized; width: {}, height: {}", width, height);
     this.width = width;
     this.height = height;
     this.resized = true;
   }
 
-  void frameBufferResized(int width, int height) {
+  private void frameBufferResized(int width, int height) {
     logger.info("Frame buffer has been resized; width: {}, height: {}", width, height);
     frameBufferWidth = width;
     frameBufferHeight = height;
     frameBufferResized = true;
+  }
+
+  private final class FrameBufferSizeCallback implements GLFWFramebufferSizeCallbackI {
+
+    @Override
+    public void invoke(long window, int width, int height) {
+      frameBufferResized(width, height);
+    }
+  }
+
+  private final class WindowSizeCallback implements GLFWWindowSizeCallbackI {
+
+    @Override
+    public void invoke(long window, int width, int height) {
+      windowResized(width, height);
+    }
   }
 }

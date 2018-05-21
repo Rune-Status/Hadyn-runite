@@ -1,4 +1,4 @@
-package com.syms.runite;
+package com.syms.runite.math;
 
 import java.nio.FloatBuffer;
 
@@ -25,10 +25,10 @@ public final class Matrix4f {
   private float a33;
 
   public Matrix4f() {
-    setIdentity();
+    asIdentity();
   }
 
-  public void setIdentity() {
+  public void asIdentity() {
     a00 = a11 = a22 = a33 = 1.0f;
     a01 = a02 = a03 = a10 = a12 = a13 = a20 = a21 = a23 = a30 = a31 = a32 = 0.0f;
   }
@@ -39,7 +39,7 @@ public final class Matrix4f {
                              float bottom,
                              float near,
                              float far) {
-    setIdentity();
+    asIdentity();
 
     a00 = 2.0f / (right - left);
     a11 = 2.0f / (top - bottom);
@@ -52,7 +52,7 @@ public final class Matrix4f {
   }
 
   public Matrix4f asTranslation(float x, float y, float z) {
-    setIdentity();
+    asIdentity();
     a03 = x;
     a13 = y;
     a23 = z;
@@ -73,7 +73,7 @@ public final class Matrix4f {
   }
 
   public Matrix4f asScaling(float x, float y, float z) {
-    setIdentity();
+    asIdentity();
 
     a00 = x;
     a11 = y;

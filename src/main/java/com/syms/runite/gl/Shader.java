@@ -1,4 +1,4 @@
-package com.syms.runite.renderer;
+package com.syms.runite.gl;
 
 import static java.lang.String.format;
 import static org.lwjgl.opengl.GL20.GL_FRAGMENT_SHADER;
