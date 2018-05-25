@@ -50,6 +50,8 @@ public final class Client {
 
   private static final int TYPE_COUNT = 17;
 
+  private static final int META_TABLES_TYPE = 255;
+
   private final Regulator regulator = new Regulator();
   private final int minimum = 1;
   private final int delta = 20;
@@ -57,17 +59,19 @@ public final class Client {
   private final Renderer renderer = new Renderer();
 
   private long window = NULL;
-  private int width = 500;
-  private int height = 500;
-  private boolean resized = true;
+  private int windowWidth = 500;
+  private int windowHeight = 500;
+  private boolean windowResized = true;
 
-  private BufferedFile blocksFile;
+  private BufferedFile blocks;
   private BufferedFile metaIndex;
   private BufferedFile[] indexFiles = new BufferedFile[TYPE_COUNT];
 
-  private int frameBufferWidth = -1;
-  private int frameBufferHeight = -1;
-  private boolean frameBufferResized;
+  private Cache metaTables;
+
+  private int width = -1;
+  private int height = -1;
+  private boolean resized;
 
   private boolean cleanShutdown = true;
 
@@ -83,9 +87,12 @@ public final class Client {
     glfwSetWindowSizeCallback(window, new WindowSizeCallback());
     glfwSetFramebufferSizeCallback(window, new FrameBufferSizeCallback());
 
+    logger.info("Initializing files.");
+
     try {
-      blocksFile = new BufferedFile(
-          new FileOnDisk(getCacheFile("main_file_cache.dat2"), "rw"), Cache.BLOCK_LENGTH * 10, 0);
+      blocks = new BufferedFile(
+          new FileOnDisk(getCacheFile("main_file_cache.dat2"), "rw"),
+            Cache.BLOCK_LENGTH * 10, 0);
 
       metaIndex = new BufferedFile(
           new FileOnDisk(getCacheFile("main_file_cache.idx255"), "rw"),
@@ -101,17 +108,19 @@ public final class Client {
       return;
     }
 
+    metaTables = new Cache(META_TABLES_TYPE, blocks, metaIndex);
+
     logger.info("Initializing the renderer");
 
     try (MemoryStack stack = stackPush()) {
       IntBuffer width = stack.mallocInt(1);
       IntBuffer height = stack.mallocInt(1);
       glfwGetFramebufferSize(window, width, height);
-      frameBufferWidth = width.get();
-      frameBufferHeight = height.get();
+      this.width = width.get();
+      this.height = height.get();
     }
 
-    renderer.init(frameBufferWidth, frameBufferHeight);
+    renderer.init(width, height);
   }
 
   private File getCacheFile(String path) {
@@ -127,8 +136,8 @@ public final class Client {
   }
 
   public void update() {
-    if (resized) {
-      resized = false;
+    if (windowResized) {
+      windowResized = false;
     }
   }
 
@@ -141,9 +150,9 @@ public final class Client {
   }
 
   public void draw() {
-    if (frameBufferResized) {
-      renderer.updateDimensions(frameBufferWidth, frameBufferHeight);
-      frameBufferResized = false;
+    if (resized) {
+      renderer.updateDimensions(width, height);
+      resized = false;
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -165,13 +174,13 @@ public final class Client {
     logger.info("Closing files.");
 
     try {
-      blocksFile.close();
+      blocks.close();
       metaIndex.close();
 
       for (BufferedFile file : indexFiles) {
         file.close();
       }
-    } catch (IOException ignored) {
+    } catch (Throwable ignored) {
     }
 
     logger.info("Freeing renderer resources.");
@@ -194,7 +203,7 @@ public final class Client {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-    window = glfwCreateWindow(width, height, format("Runite %s", VERSION), NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, format("Runite %s", VERSION), NULL, NULL);
     if (window == NULL) {
       throw new IllegalStateException("Failed to create window.");
     }
@@ -225,18 +234,18 @@ public final class Client {
     destroy();
   }
 
-  public void windowResized(int width, int height) {
+  private void windowResized(int width, int height) {
     logger.info("Window has been resized; width: {}, height: {}", width, height);
-    this.width = width;
-    this.height = height;
-    this.resized = true;
+    windowWidth = width;
+    windowHeight = height;
+    windowResized = true;
   }
 
   private void frameBufferResized(int width, int height) {
     logger.info("Frame buffer has been resized; width: {}, height: {}", width, height);
-    frameBufferWidth = width;
-    frameBufferHeight = height;
-    frameBufferResized = true;
+    this.width = width;
+    this.height = height;
+    resized = true;
   }
 
   private final class FrameBufferSizeCallback implements GLFWFramebufferSizeCallbackI {

@@ -186,7 +186,7 @@ public final class Renderer {
 
   public void bind(VertexArrayObject array) {
     if (vertexArrayId != array.getId()) {
-      logger.info("Bound vertex array; id: {}.", array.getId());
+      logger.info("Bound vertex array; id: {}", array.getId());
       glBindVertexArray(array.getId());
       vertexArrayId = array.getId();
     }
@@ -198,7 +198,7 @@ public final class Renderer {
 
   public void bind(VertexBufferObject buffer) {
     if (vertexBufferId != buffer.getId()) {
-      logger.info("Bound vertex buffer; id: {}.", buffer.getId());
+      logger.info("Bound vertex buffer; id: {}", buffer.getId());
       glBindBuffer(buffer.getTarget(), buffer.getId());
       vertexBufferId = buffer.getId();
     }
